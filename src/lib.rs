@@ -8,6 +8,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#![cfg_attr(feature = "no-std", no_std)]
+
 //! A typesafe bitmask flag generator.
 
 /// The `bitflags!` macro generates a `struct` that holds a set of C-style
@@ -142,8 +144,8 @@ macro_rules! bitflags {
 
         $($(#[$Flag_attr])* pub const $Flag: $BitFlags = $BitFlags { bits: $value };)+
 
-        impl ::std::fmt::Debug for $BitFlags {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        impl $crate::std_or_core::fmt::Debug for $BitFlags {
+            fn fmt(&self, f: &mut $crate::std_or_core::fmt::Formatter) -> $crate::std_or_core::fmt::Result {
                 // This convoluted approach is to handle #[cfg]-based flag
                 // omission correctly. Some of the $Flag variants may not be
                 // defined in this module so we create an inner module which
@@ -160,8 +162,8 @@ macro_rules! bitflags {
 
                     #[inline]
                     pub fn fmt(self_: &super::$BitFlags,
-                               f: &mut ::std::fmt::Formatter)
-                               -> ::std::fmt::Result {
+                               f: &mut $crate::std_or_core::fmt::Formatter)
+                               -> $crate::std_or_core::fmt::Result {
                         // Now we import the real values for the flags.
                         // Only ones that are #[cfg]ed out will be 0.
                         use super::*;
@@ -218,11 +220,11 @@ macro_rules! bitflags {
             /// Convert from underlying bit representation, unless that
             /// representation contains bits that do not correspond to a flag.
             #[inline]
-            pub fn from_bits(bits: $T) -> ::std::option::Option<$BitFlags> {
+            pub fn from_bits(bits: $T) -> $crate::std_or_core::option::Option<$BitFlags> {
                 if (bits & !$BitFlags::all().bits()) != 0 {
-                    ::std::option::Option::None
+                    $crate::std_or_core::option::Option::None
                 } else {
-                    ::std::option::Option::Some($BitFlags { bits: bits })
+                    $crate::std_or_core::option::Option::Some($BitFlags { bits: bits })
                 }
             }
 
@@ -276,7 +278,7 @@ macro_rules! bitflags {
             }
         }
 
-        impl ::std::ops::BitOr for $BitFlags {
+        impl $crate::std_or_core::ops::BitOr for $BitFlags {
             type Output = $BitFlags;
 
             /// Returns the union of the two sets of flags.
@@ -286,7 +288,7 @@ macro_rules! bitflags {
             }
         }
 
-        impl ::std::ops::BitXor for $BitFlags {
+        impl $crate::std_or_core::ops::BitXor for $BitFlags {
             type Output = $BitFlags;
 
             /// Returns the left flags, but with all the right flags toggled.
@@ -296,7 +298,7 @@ macro_rules! bitflags {
             }
         }
 
-        impl ::std::ops::BitAnd for $BitFlags {
+        impl $crate::std_or_core::ops::BitAnd for $BitFlags {
             type Output = $BitFlags;
 
             /// Returns the intersection between the two sets of flags.
@@ -306,7 +308,7 @@ macro_rules! bitflags {
             }
         }
 
-        impl ::std::ops::Sub for $BitFlags {
+        impl $crate::std_or_core::ops::Sub for $BitFlags {
             type Output = $BitFlags;
 
             /// Returns the set difference of the two sets of flags.
@@ -316,7 +318,7 @@ macro_rules! bitflags {
             }
         }
 
-        impl ::std::ops::Not for $BitFlags {
+        impl $crate::std_or_core::ops::Not for $BitFlags {
             type Output = $BitFlags;
 
             /// Returns the complement of this set of flags.
@@ -326,8 +328,8 @@ macro_rules! bitflags {
             }
         }
 
-        impl ::std::iter::FromIterator<$BitFlags> for $BitFlags {
-            fn from_iter<T: ::std::iter::IntoIterator<Item=$BitFlags>>(iterator: T) -> $BitFlags {
+        impl $crate::std_or_core::iter::FromIterator<$BitFlags> for $BitFlags {
+            fn from_iter<T: $crate::std_or_core::iter::IntoIterator<Item=$BitFlags>>(iterator: T) -> $BitFlags {
                 let mut result = Self::empty();
                 for item in iterator {
                     result.insert(item)
@@ -348,10 +350,21 @@ macro_rules! bitflags {
     };
 }
 
+#[cfg(feature = "no-std")]
+pub use core as std_or_core;
+#[cfg(not(feature = "no-std"))]
+pub use std as std_or_core;
+
+// Tests use `format!`; this is simpler than `impl`ing `fmt::Write`
+// for fixed-size buffers just for one test.
+#[cfg(all(test, feature = "no-std"))]
+#[macro_use]
+extern crate std as std_for_test;
+
 #[cfg(test)]
 #[allow(non_upper_case_globals, dead_code)]
 mod tests {
-    use std::hash::{SipHasher, Hash, Hasher};
+    use super::std_or_core::hash::{SipHasher, Hash, Hasher};
 
     bitflags! {
         #[doc = "> The first principle is that you must not fool yourself — and"]
